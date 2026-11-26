@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · DistriFlow{% endblock %}
+{% block content %}
+
+<div class="page-head" style="margin-bottom: 24px;">
+  <div>
+    <h1>Dispatch Overview</h1>
+    <p class="muted">Live snapshot of your delivery operations for {{ now }}.</p>
+  </div>
+  <div style="display: flex; gap: 12px;">
+    <a href="/new_plan" class="btn primary">+ New Plan</a>
+  </div>
+</div>
+
+<!-- Top Row: KPI Tiles (Refined) -->
+<div class="tiles" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
+  <div class="tile" style="border-left: 4px solid var(--amber);">
+    <span class="label">Active Deliveries Today</span>
+    <span class="value" id="kpi-active-today">0</span>
+    <span class="hint">Awaiting delivery or in transit</span>
+  </div>
+  <div class="tile" style="border-left: 4px solid var(--navy);">
+    <span class="label">Plans Created</span>
+    <span class="value" id="kpi-total-plans">0</span>
+    <span class="hint">All-time approved plans</span>
+  </div>
+  <div class="tile" style="border-left: 4px solid var(--ok);">
+    <span class="label">Active Fleet</span>
+    <span class="value" id="kpi-trucks">0</span>
+    <span class="hint">Trucks available for dispatch</span>
+  </div>
+  <div class="tile" style="border-left: 4px solid var(--muted);">
+    <span class="label">Total Customers</span>
+    <span class="value" id="kpi-customers">0</span>
+    <span class="hint">Registered locations</span>
+  </div>
+</div>
+
+<!-- Main Grid: Charts & Tables -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
+  
+  <!-- Left: Activity Chart -->
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h2 style="margin: 0;">Plan Activity</h2>
+      <select id="chart-range" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); font-size: 0.85rem;">
+        <option value="7">Last 7 Days</option>
+        <option value="30">Last 30 Days</option>
+      </select>
+    </div>
+    <div style="height: 280px; position: relative;">
+      <canvas id="activityChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Right: Donut Chart -->
+  <div class="card">
+    <h2 style="margin-bottom: 16px;">Plan Status</h2>
+    <div style="height: 200px; position: relative; display: flex; justify-content: center;">
+      <canvas id="fleetDonut"></canvas>
+    </div>
+    <div class="legend" style="justify-content: center; margin-top: 16px; gap: 16px;">
+      <span><i style="background: #1E2761;"></i> Approved</span>
+      <span><i style="background: #E8A93B;"></i> In Transit</span>
+      <span><i style="background: #1B7F5A;"></i> Delivered</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom Row: Recent Plans Table -->
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <h2 style="margin: 0;">Recent Deliveries</h2>
+    <a href="/plans/history" style="font-size: 0.85rem; font-weight: 600;">View all →</a>
+  </div>
+  
+  <div class="table-wrap">
+    <table style="min-width: 100%;">
+      <thead>
+        <tr>
+          <th>Plan ID</th>
+          <th>Delivery Date</th>
+          <th>Assigned Truck</th>
+          <th class="r">Stops</th>
+          <th class="r">Status</th>
+        </tr>
+      </thead>
+      <tbody id="recent-plans-body">
+        <tr><td colspan="5" class="muted" style="text-align: center;">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

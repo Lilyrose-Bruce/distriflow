@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Saved Plans · DistriFlow{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Plan History</h1>
+    <p class="muted">View all approved delivery plans, track their status, and download manifests.</p>
+  </div>
+  <div>
+    <a href="/new_plan" class="btn primary">+ New Delivery Plan</a>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="margin-bottom: 20px; display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+  <label style="flex: 1; min-width: 200px;">
+    Search Plan ID
+    <input type="text" id="filter-search" placeholder="e.g. 1024" style="width: 100%;">
+  </label>
+  
+  <label style="flex: 1; min-width: 200px;">
+    Delivery Date
+    <input type="date" id="filter-date" style="width: 100%;">
+  </label>
+  
+  <label style="flex: 1; min-width: 200px;">
+    Status
+    <select id="filter-status" style="width: 100%;">
+      <option value="">All Statuses</option>
+      <option value="approved">Approved</option>
+      <option value="in_progress">In Transit</option>
+      <option value="delivered">Delivered</option>
+    </select>
+  </label>
+  
+  <button type="button" class="btn" onclick="clearFilters()">Clear</button>
+</div>
+
+<!-- Data Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-wrap">
+    <table id="plans-table" style="min-width: 100%;">
+      <thead>
+        <tr>
+          <th style="width: 40px;"></th> <!-- Expand button -->
+          <th>Plan ID</th>
+          <th>Delivery Date</th>
+          <th>Truck</th>
+          <th class="r">Stops</th>
+          <th class="r">Distance</th>
+          <th>Status</th>
+          <th class="r">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="plans-body">
+        <tr><td colspan="8" class="muted" style="text-align: center; padding: 24px;">Loading plans...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/plans_saved.js"></script>
+{% endblock %}

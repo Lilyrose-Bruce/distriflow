@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Plan Approved · DistriFlow{% endblock %}
+{% block content %}
+
+<div class="page-head" style="margin-bottom: 24px;">
+  <h1>Plan approved</h1>
+</div>
+
+<!-- Stepper -->
+<ol class="steps">
+  <li class="done"><button type="button" onclick="window.location.href='/plan/new'">1 Select truck and upload</button></li>
+  <li class="done"><button type="button" onclick="window.location.href='/staging'">2 Check staging table</button></li>
+  <li class="done"><button type="button" onclick="window.location.href='/plans/draft/view'">3 Review plan</button></li>
+  <li class="current"><button type="button">4 Approve and download</button></li>
+</ol>
+
+<!-- Success Banner -->
+<div class="card" style="margin-bottom: 24px;">
+  <h2 style="font-size: 2rem; margin-bottom: 8px; color: var(--ink);" id="plan-code">DF-0000-0000 saved</h2>
+  <p class="muted" style="font-size: 1.05rem; margin-bottom: 20px;" id="plan-summary">
+    Loading plan details...
+  </p>
+  
+  <div style="display: flex; gap: 12px;">
+    <button class="btn primary" onclick="window.location.href='/new_plan'">Start another plan</button>
+    <button class="btn" onclick="window.location.href='/plans/saved'">View approved plans</button>
+  </div>
+</div>
+
+<!-- Delivery Sequence -->
+<div class="card" style="margin-bottom: 24px;">
+  <h3 style="margin-bottom: 16px;">Delivery sequence (driver)</h3>
+  <div class="mono" id="delivery-csv-preview" style="background: var(--surface-2); padding: 16px; border-radius: 6px; font-size: 0.85rem; white-space: pre-wrap; margin-bottom: 16px; color: var(--ink); max-height: 300px; overflow-y: auto;">
+    Loading delivery data...
+  </div>
+  <div style="display: flex; gap: 12px;">
+    <button class="btn primary" onclick="downloadCSV('delivery')">Download CSV</button>
+    <button class="btn" onclick="copyToClipboard('delivery')">Copy</button>
+  </div>
+</div>
+
+<!-- Loading Plan -->
+<div class="card">
+  <h3 style="margin-bottom: 16px;">Loading plan (loading crew)</h3>
+  <div class="mono" id="loading-csv-preview" style="background: var(--surface-2); padding: 16px; border-radius: 6px; font-size: 0.85rem; white-space: pre-wrap; margin-bottom: 16px; color: var(--ink); max-height: 300px; overflow-y: auto;">
+    Loading crew data...
+  </div>
+  <div style="display: flex; gap: 12px;">
+    <button class="btn primary" onclick="downloadCSV('loading')">Download CSV</button>
+    <button class="btn" onclick="copyToClipboard('loading')">Copy</button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/plan_approved.js"></script>
+{% endblock %}

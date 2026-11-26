@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Users · DistriFlow{% endblock %}
+{% block content %}
+
+<div class="page-head" style="display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <h1>Users</h1>
+    <p class="muted">Manage system access and roles.</p>
+  </div>
+  <button class="btn primary" onclick="openModal()" id="btn-add" style="display: none;">Add User</button>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table id="users-table" class="tbl">
+      <thead>
+        <tr>
+          <th>Full Name</th>
+          <th>Username</th>
+          <th>Role</th>
+          <th class="r">Status</th>
+          <th class="r" id="th-actions" style="display: none;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" class="muted" style="text-align: center; padding: 24px;">Loading users...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
+  <div class="card" style="width: 100%; max-width: 400px; margin: 20px;">
+    <h3 id="modal-title">Add User</h3>
+    <form id="entity-form" style="display: grid; gap: 16px;">
+      <input type="hidden" id="entity-id">
+      
+      <label>Full Name <input type="text" id="f-name" required></label>
+      <label>Username <input type="text" id="f-user" required></label>
+      <label>Password <input type="password" id="f-pass" placeholder="Leave blank to keep current"></label>
+      <label>Role 
+        <select id="f-role">
+          <option value="Dispatcher">Dispatcher</option>
+          <option value="Administrator">Administrator</option>
+        </select>
+      </label>
+      <label style="display: flex; gap: 8px; align-items: center;">
+        <input type="checkbox" id="f-active" checked> Is Active
+      </label>
+      
+      <div class="row-actions" style="margin-top: 8px;">
+        <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin_users.js"></script>{% endblock %}

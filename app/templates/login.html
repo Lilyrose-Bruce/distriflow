@@ -1,0 +1,51 @@
+<! DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DistriFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body>
+	<!--SIGN IN SCREEN-->
+  <main class = "login" id="login">
+	<section class = "brand">
+		<div class="brand__content">
+			<p class="brand__mark">DistriFlow</p>
+			<h1 class="brand__tagline">From Order List to Optimized Routes and Loading Plans</h1>
+			<p class="brand__sub">Upload a shipment's orders and get back an optimized delivery route and a reverse-order loading plan. No more sorting it by hand.</p>
+    </div>
+  </section>
+
+  <section class="form-panel">
+    <div class="form-panel__inner">
+    		<header class='form-header'>
+          <h1>Welcome back</h1>
+    			<p>Plan today's route and loading sequence</p>
+    		</header>
+    		<form id="login-form" class="login-form" novalidate>
+    			<div class="field">
+    				<label for="username">Username</label>
+    				<input type="username" id="username" name="username" placeholder="Enter your username" required autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="password">Password</label>         
+          <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+        </div>
+        <p id="login-error" hidden></p>
+        <button type="submit" class="btn-primary">Sign in</button>
+        <div class="divider"><span>or</span></div>
+         <p class="helper-text">Need access? Contact your supervisor to be added.</p>
+    		</form>
+    	</div>
+    </section>
+  </main>
+
+  <script src="/static/js/auth.js"></script>
+
+</body>
+</html>

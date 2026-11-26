@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Review Plan · DistriFlow{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Review plan: truck <span id="truck-plate">...</span></h1>
+    <p class="muted">Generated in <span id="gen-time">0</span> ms for <span id="stop-count">0</span> stops. Drag stops (or use the arrows) to change the order. Everything recalculates as you go.</p>
+  </div>
+</div>
+
+<!-- Stepper -->
+<ol class="steps">
+  <li class="done"><button type="button" onclick="window.location.href='/plan/new'">1 Select truck and upload</button></li>
+  <li class="done"><button type="button" onclick="window.location.href='/staging'">2 Check staging table</button></li>
+  <li class="current"><button type="button">3 Review plan</button></li>
+  <li><button type="button" disabled>4 Approve and download</button></li>
+</ol>
+
+<!-- Delivery Sequence -->
+<div class="card" style="padding-bottom: 0;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <h2 style="margin: 0;">Delivery sequence</h2>
+    <span class="muted" style="font-size: 0.85rem;">Drag to re-order</span>
+  </div>
+  
+  <ul id="stops-list" style="list-style: none; padding: 0; margin: 0;">
+    <!-- Stops injected by JS -->
+  </ul>
+  <p class="muted" style="font-size: 0.85rem; margin: 16px 0;">Departs depot at <span id="depot-time">08:00</span>, <span id="service-time">20</span> min at each stop.</p>
+</div>
+
+<!-- Loading Plan -->
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <h2 style="margin: 0;">Loading plan</h2>
+    <span class="muted" style="font-size: 0.85rem;">Load top to bottom</span>
+  </div>
+  
+  <div id="loading-list" style="display: grid; gap: 12px;">
+    <!-- Loading items injected by JS -->
+  </div>
+  <p class="muted" style="font-size: 0.85rem; margin: 16px 0 0;">First loaded sits deepest in the truck. Stop 1 goods are loaded last, near the doors.</p>
+</div>
+
+<!-- Metrics -->
+<div class="card">
+  <h2 style="margin-bottom: 16px;">Metrics</h2>
+  <table class="table-wrap" style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr style="background: var(--surface-2); text-align: left;">
+        <th style="padding: 10px; font-size: 0.8rem; text-transform: uppercase; color: var(--muted);">Metric</th>
+        <th style="padding: 10px; font-size: 0.8rem; text-transform: uppercase; color: var(--muted); text-align: right;">Original</th>
+        <th style="padding: 10px; font-size: 0.8rem; text-transform: uppercase; color: var(--muted); text-align: right;">Changed</th>
+      </tr>
+    </thead>
+    <tbody id="metrics-body">
+      <!-- Rows injected by JS -->
+    </tbody>
+  </table>
+  
+  <div id="metric-alert" style="background: var(--amber-soft); padding: 12px 16px; border-radius: 6px; margin-top: 16px; font-size: 0.9rem;">
+    Matches the original plan. Drag a stop to try a different order.
+  </div>
+  
+  <button class="btn" style="margin-top: 16px;" onclick="resetToOriginal()" id="btn-reset" disabled>Reset to original</button>
+</div>
+
+<!-- Route Sketch (Side by Side Maps) -->
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <h2 style="margin: 0;">Route Map</h2>
+    <span class="muted" style="font-size: 0.85rem;">Actual road network</span>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+    
+    <!-- Original Route -->
+    <div>
+      <div style="text-align: center; font-weight: 600; margin-bottom: 12px; color: var(--muted);">Original Plan</div>
+      <!-- Map container needs a fixed height -->
+      <div id="map-original" style="height: 350px; border-radius: 8px; border: 1px solid var(--line); z-index: 1;"></div>
+    </div>
+
+    <!-- Changed Route -->
+    <div>
+      <div style="text-align: center; font-weight: 600; margin-bottom: 12px; color: var(--navy);">Changed Plan</div>
+      <div id="map-changed" style="height: 350px; border-radius: 8px; border: 1px solid var(--line); z-index: 1;"></div>
+    </div>
+    
+  </div>
+</div>
+
+
+<!-- Footer Actions -->
+<div class="bar-actions" style="margin-top: 24px; margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <button type="button" class="btn" onclick="window.location.href='/staging'">Back to staging</button>
+  </div>
+  
+  <div style="display: flex; gap: 12px; align-items: center;">
+    <label style="display: flex; align-items: center; gap: 8px; font-weight: 500;">
+      Delivery Date:
+      <input type="date" id="delivery-date-input" style="padding: 8px; border-radius: 6px; border: 1px solid var(--line);">
+    </label>
+    <button type="button" class="btn primary" onclick="approvePlan()">Approve plan</button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/plan_draft.js"></script>
+{% endblock %}

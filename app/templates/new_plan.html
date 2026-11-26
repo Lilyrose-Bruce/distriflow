@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}New Plan · DistriFlow{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>New delivery plan</h1>
+    <p class="muted">Pick the truck for this shipment, then upload the day's orders.</p>
+  </div>
+</div>
+
+<!-- Stepper -->
+<ol class="steps">
+  <li class="current"><button type="button">1 Select truck and upload</button></li>
+  <li><button type="button" disabled>2 Check staging table</button></li>
+  <li><button type="button" disabled>3 Review plan</button></li>
+  <li><button type="button" disabled>4 Approve and download</button></li>
+</ol>
+
+<!-- Main Upload Card -->
+<div class="card">
+  <div style="display: grid; gap: 24px;">
+    
+    <!-- Truck Selection -->
+    <label>
+      Truck
+      <select id="truck-select">
+        <option value="">Loading trucks...</option>
+      </select>
+    </label>
+
+    <!-- File Upload Area -->
+    <div>
+      <div style="font-weight: 500; font-size: 0.86rem; margin-bottom: 8px;">Order file</div>
+      <div class="upload-zone" id="drop-zone">
+        <p id="file-name" style="margin: 0 0 8px; font-weight: 600;">No file selected</p>
+        <p class="muted" style="margin: 0 0 16px; font-size: 0.9rem;" id="file-helper">Drag & drop or browse files</p>
+        
+        <input type="file" id="file-input" accept=".csv,.xlsx" style="display: none;">
+        
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button type="button" class="btn" onclick="document.getElementById('file-input').click()">Browse files</button>
+          <button type="button" class="btn" id="btn-example">Use example orders</button>
+        </div>
+        
+        <p class="muted" style="margin: 16px 0 0; font-size: 0.8rem;">CSV or Excel file (.csv, .xlsx)</p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row-actions">
+      <button type="button" class="btn" id="btn-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="btn-upload" disabled>Upload and check</button>
+    </div>
+    
+  </div>
+</div>
+
+<!-- Help / Requirements Section -->
+<div class="card" style="background: var(--surface-2); border: none;">
+  <h3 style="color: var(--navy);">Required columns</h3>
+  <ul style="margin: 0 0 16px; padding-left: 20px; font-size: 0.9rem; color: var(--ink); line-height: 1.6;">
+    <li>Customer</li>
+    <li>Product</li>
+    <li>Quantity</li>
+    <li>Unit weight (kg)</li>
+    <li>Total weight (kg)</li>
+  </ul>
+  
+  <div class="mono" style="background: var(--navy-dark); color: var(--ice); padding: 16px; border-radius: 6px; font-size: 0.85rem; overflow-x: auto;">
+    Customer,Product,Quantity,Unit weight (kg),Total weight (kg)<br>
+    Mwangi Hardware,MDF board 18mm,40,25,1000<br>
+    Njeri Building Supplies,Laminated door,30,18,540<br>
+    Otieno Timber Mart,Door frame,60,12,720
+  </div>
+  
+  <div style="margin-top: 12px; display: flex; gap: 12px;">
+    <button type="button" class="btn small" id="btn-copy">Copy example file</button>
+  </div>
+  
+  <p class="note">Customers must already exist in the customer records. Rows with problems are flagged on the next step.</p>
+</div>
+
+<style>
+  /* Add this small block to your app.css to style the upload zone exactly like the screenshot */
+  .upload-zone {
+    border: 2px dashed var(--navy-line);
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    background: var(--navy);
+    color: var(--paper);
+    transition: border-color 0.2s;
+  }
+  .upload-zone.drag-over {
+    border-color: var(--gold);
+    background: var(--navy);
+  }
+  .upload-zone .btn {
+    background: var(--navy-line);
+    color: var(--paper);
+    border-color: var(--navy-line);
+  }
+  .upload-zone .btn:hover {
+    background: var(--navy);
+    border-color: var(--ice);
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/new_plan.js"></script>
+{% endblock %}

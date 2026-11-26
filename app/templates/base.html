@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}DistriFlow{% endblock %}</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles & Libraries -->
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* Sidebar layout */
+    .app-layout {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .sidebar {
+      width: 260px;
+      background: var(--navy-dark);
+      color: var(--paper);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      transition: width 0.25s ease;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .sidebar.collapsed { width: 76px; }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      padding: 0 8px;
+      white-space: nowrap;
+    }
+
+    .sidebar-logo .mark {
+      font-size: 1.6rem;
+      color: var(--amber);
+      line-height: 1;
+    }
+
+    .sidebar-logo .name {
+      font: 600 1.3rem var(--font-display);
+      color: var(--paper);
+      letter-spacing: 0.01em;
+      transition: opacity 0.2s;
+    }
+
+    .sidebar.collapsed .name { opacity: 0; width: 0; }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      color: var(--ice);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.92rem;
+      border-radius: 8px;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .sidebar-link:hover { background: var(--navy); color: var(--paper); }
+
+    .sidebar-link.active {
+      background: var(--amber);
+      color: var(--navy-dark);
+      font-weight: 600;
+    }
+
+    .sidebar-link .icon { font-size: 1.1rem; width: 24px; text-align: center; flex-shrink: 0; }
+    .sidebar-link .text { transition: opacity 0.15s; }
+    .sidebar.collapsed .sidebar-link .text { opacity: 0; width: 0; overflow: hidden; }
+
+    .sidebar-footer {
+      border-top: 1px solid var(--navy-line);
+      padding-top: 16px;
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sidebar-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 10px;
+      background: transparent;
+      border: 1px solid var(--navy-line);
+      color: var(--ice);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+
+    .sidebar-toggle:hover { background: var(--navy); color: var(--paper); }
+
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px 48px;
+    }
+
+    /* Hide the old topbar */
+    .topbar { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 32 20" width="32" height="20" aria-hidden="true"><path d="M1 3h17v11H1zM18 7h7l5 4v3H18z" fill="currentColor"/><circle cx="8" cy="16" r="2.6" fill="currentColor" stroke="var(--surface)" stroke-width="1.5"/><circle cx="24" cy="16" r="2.6" fill="currentColor" stroke="var(--surface)" stroke-width="1.5"/></svg>
+      <span class="name">DistriFlow</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="sidebar-link {% if active == 'dashboard' %}active{% endif %}">
+        <span class="icon">📊</span><span class="text">Overview</span>
+      </a>
+      <a href="/plan/new" class="sidebar-link {% if active == 'new_plan' %}active{% endif %}">
+        <span class="icon">📦</span><span class="text">New Delivery Plan</span>
+      </a>
+      <a href="/plans/history" class="sidebar-link {% if active == 'saved' %}active{% endif %}">
+        <span class="icon">📋</span><span class="text">Saved Plans</span>
+      </a>
+      <a href="/admin/customers" class="sidebar-link {% if active == 'admin' %}active{% endif %}">
+        <span class="icon">👥</span><span class="text">Customers</span>
+      </a>
+      <a href="/admin/trucks" class="sidebar-link {% if active == 'admin' %}active{% endif %}">
+        <span class="icon">🚛</span><span class="text">Trucks</span>
+      </a>
+      <a href="/admin/users" class="sidebar-link {% if active == 'admin' %}active{% endif %}">
+        <span class="icon">🔐</span><span class="text">Users</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="who" style="display: flex; align-items: center; gap: 10px; padding: 0 8px; margin-bottom: 8px;">
+        <span class="who-name" id="current-user" style="color: var(--ice); font-size: 0.9rem; font-weight: 500;"></span>
+      </div>
+      <button id="btn-logout" class="sidebar-toggle" style="background: var(--navy); border-color: var(--amber); color: var(--amber);">Log out</button>
+      <button class="sidebar-toggle" onclick="toggleSidebar()">
+        <span id="toggle-icon">◀</span> <span class="text" id="toggle-text" style="margin-left: 6px;">Minimize</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+<script src="/static/js/auth.js"></script>
+
+<script>
+  // --- Sidebar Toggle Logic ---
+  const sidebar = document.getElementById('sidebar');
+  const toggleIcon = document.getElementById('toggle-icon');
+  const toggleText = document.getElementById('toggle-text');
+
+  function toggleSidebar() {
+    sidebar.classList.toggle('collapsed');
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    
+    // Save state
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+    
+    // Update icons
+    if (isCollapsed) {
+      toggleIcon.textContent = '▶';
+      if (toggleText) toggleText.style.display = 'none';
+    } else {
+      toggleIcon.textContent = '◀';
+      if (toggleText) toggleText.style.display = 'inline';
+    }
+  }
+
+  // Restore state on load
+  window.addEventListener('DOMContentLoaded', () => {
+    const savedState = localStorage.getItem('sidebarCollapsed');
+    if (savedState === 'true') {
+      sidebar.classList.add('collapsed');
+      toggleIcon.textContent = '▶';
+      if (toggleText) toggleText.style.display = 'none';
+    }
+  });
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

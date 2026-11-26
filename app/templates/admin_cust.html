@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Customers · DistriFlow{% endblock %}
+{% block content %}
+
+<div class="page-head" style="display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <h1>Customers</h1>
+    <p class="muted">Manage delivery locations and opening hours.</p>
+  </div>
+  <button class="btn primary" onclick="openModal()" id="btn-add" style="display: none;">Add Customer</button>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table id="customers-table" class="tbl">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Town</th>
+          <th>Phone</th>
+          <th class="r">Opening Hours</th>
+          <th class="r" id="th-actions" style="display: none;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" class="muted" style="text-align: center; padding: 24px;">Loading customers...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
+  <div class="card" style="width: 100%; max-width: 500px; margin: 20px;">
+    <h3 id="modal-title">Add Customer</h3>
+    <form id="entity-form" style="display: grid; gap: 16px;">
+      <input type="hidden" id="entity-id">
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <label>Name <input type="text" id="f-name" required></label>
+        <label>Town <input type="text" id="f-town" required></label>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <label>Phone <input type="text" id="f-phone"></label>
+        <label>Opening Time <input type="time" id="f-open" required></label>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <label>Closing Time <input type="time" id="f-close" required></label>
+        <label>Latitude <input type="number" step="any" id="f-lat" required></label>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <label>Longitude <input type="number" step="any" id="f-lng" required></label>
+      </div>
+      
+      <div class="row-actions" style="margin-top: 8px;">
+        <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin_cust.js"></script>{% endblock %}

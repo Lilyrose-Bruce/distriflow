@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Trucks · DistriFlow{% endblock %}
+{% block content %}
+
+<div class="page-head" style="display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <h1>Trucks</h1>
+    <p class="muted">Manage the fleet and their maximum capacities.</p>
+  </div>
+  <button class="btn primary" onclick="openModal()" id="btn-add" style="display: none;">Add Truck</button>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table id="trucks-table" class="tbl">
+      <thead>
+        <tr>
+          <th>License Plate</th>
+          <th class="r">Max Weight (kg)</th>
+          <th class="r">Status</th>
+          <th class="r" id="th-actions" style="display: none;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" class="muted" style="text-align: center; padding: 24px;">Loading trucks...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
+  <div class="card" style="width: 100%; max-width: 400px; margin: 20px;">
+    <h3 id="modal-title">Add Truck</h3>
+    <form id="entity-form" style="display: grid; gap: 16px;">
+      <input type="hidden" id="entity-id">
+      
+      <label>License Plate <input type="text" id="f-plate" required></label>
+      <label>Max Weight (kg) <input type="number" id="f-capacity" required></label>
+      <label style="display: flex; gap: 8px; align-items: center;">
+        <input type="checkbox" id="f-active" checked> Is Active
+      </label>
+      
+      <div class="row-actions" style="margin-top: 8px;">
+        <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin_trucks.js"></script>{% endblock %}

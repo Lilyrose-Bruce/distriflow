@@ -1,0 +1,25 @@
+# Web framework and server
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# Database (SQLite is built into Python; psycopg2 is only needed for PostgreSQL)
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+
+# Data validation
+pydantic==2.10.4
+email-validator==2.2.0
+
+# Security: password hashing + login tokens
+# (bcrypt is pinned to 4.0.1 because newer versions break passlib 1.7.4)
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+PyJWT==2.10.1
+
+# Reading the .env file
+python-dotenv==1.0.1
+
+# Testing
+pytest==8.3.4
+httpx==0.28.1

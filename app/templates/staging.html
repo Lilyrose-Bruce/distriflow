@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Staging · DistriFlow{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>New delivery plan: staging table</h1>
+    <p class="muted">Check the orders before generating the plan. Rows with errors are not counted until fixed or deleted.</p>
+  </div>
+</div>
+
+<!-- Stepper -->
+<ol class="steps">
+  <li class="done"><button type="button" onclick="window.location.href='/plan/new'">1 Select truck and upload</button></li>
+  <li class="current"><button type="button">2 Check staging table</button></li>
+  <li><button type="button" disabled>3 Review plan</button></li>
+  <li><button type="button" disabled>4 Approve and download</button></li>
+</ol>
+
+<!-- Capacity Card -->
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+    <div>
+      <span style="font-weight: 600; font-size: 1.05rem;" id="truck-title">Truck: ...</span>
+      <span class="muted" style="margin-left: 12px;" id="truck-capacity">Maximum capacity: ...</span>
+    </div>
+    <div style="font-weight: 600;" id="space-left">Space left: ...</div>
+  </div>
+  
+  <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px;">
+    <span id="staged-weight-label">Staged weight: 0 kg of 0 kg (0%)</span>
+  </div>
+  
+  <!-- Capacity Bar -->
+  <div class="track" style="height: 18px; border-radius: 4px; background: var(--surface-2); position: relative; overflow: hidden;">
+    <div class="fill" id="capacity-fill" style="width: 0%; position: absolute; top: 0; left: 0; bottom: 0; background: var(--amber); transition: width 0.3s ease;"></div>
+  </div>
+</div>
+
+<!-- Global Error Banner (Hidden by default) -->
+<div id="global-errors" class="card" style="display: none; background: var(--bad-soft); border-color: var(--bad-soft); padding: 16px;">
+  <h4 style="color: var(--bad); margin: 0 0 8px 0;" id="error-count">2 rows need fixing</h4>
+  <ul id="error-list" style="margin: 0; padding-left: 20px; color: var(--ink); font-size: 0.9rem;">
+    <!-- Error items injected by JS -->
+  </ul>
+</div>
+
+<!-- Data Table Card -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-wrap">
+    <table id="staging-table">
+      <thead>
+        <tr>
+          <th style="width: 50px;">#</th>
+          <th>Customer</th>
+          <th>Product</th>
+          <th class="r">Qty</th>
+          <th class="r">Unit Wt (kg)</th>
+          <th class="r">Total Wt (kg)</th>
+          <th>Status</th>
+          <th class="r">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="8" class="muted" style="text-align: center; padding: 24px;">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Extra Order Card -->
+<div class="card">
+  <h3>Add extra order</h3>
+  <form id="add-row-form" style="display: grid; gap: 16px; max-width: 600px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <label>
+        Customer
+        <select id="add-customer" required>
+          <option value="">Choose customer</option>
+        </select>
+      </label>
+      <label>
+        Product
+        <input type="text" id="add-product" placeholder="Product name" required>
+      </label>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <label>
+        Quantity
+        <input type="number" id="add-qty" placeholder="0" min="1" required>
+      </label>
+      <label>
+        Unit weight (kg)
+        <input type="number" id="add-unit-wt" placeholder="0" step="0.01" min="0.01" required>
+      </label>
+    </div>
+    
+    <label style="max-width: calc(50% - 8px);">
+      Total (kg)
+      <input type="text" id="add-total" placeholder="auto" readonly>
+    </label>
+    
+    <button type="submit" class="btn" style="width: 100%;">Add row</button>
+  </form>
+</div>
+
+<!-- Footer Actions -->
+<div class="bar-actions" style="margin-top: 8px;">
+  <div class="muted" id="status-message" style="font-size: 0.9rem;">
+    Generate is enabled when there are no errors and the weight is within the capacity.
+  </div>
+  <div class="row-actions">
+    <button type="button" class="btn" onclick="window.location.href='/new_plan'">Back</button>
+    <button type="button" class="btn primary" id="btn-generate" disabled>Generate Sequence</button>
+  </div>
+</div>
+
+<!-- EDIT MODAL (Hidden by default) -->
+<div id="edit-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
+  <div class="card" style="width: 100%; max-width: 500px; margin: 20px;">
+    <h3>Edit Order Row</h3>
+    <form id="edit-form" style="display: grid; gap: 16px;">
+      <input type="hidden" id="edit-row-id">
+      <label>
+        Customer
+        <select id="edit-customer" required>
+          <option value="">Choose customer</option>
+        </select>
+      </label>
+      <label>
+        Product
+        <input type="text" id="edit-product" required>
+      </label>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <label>
+          Quantity
+          <input type="number" id="edit-qty" min="1" required>
+        </label>
+        <label>
+          Unit weight (kg)
+          <input type="number" id="edit-unit-wt" step="0.01" min="0.01" required>
+        </label>
+      </div>
+      <div class="row-actions" style="margin-top: 8px;">
+        <button type="button" class="btn" onclick="closeEditModal()">Cancel</button>
+        <button type="submit" class="btn primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/staging.js"></script>
+{% endblock %}
