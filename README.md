@@ -1,4 +1,4 @@
-# DistriFlow — Route Optimization and Truck Loading Planning System
+# DistriFlow: Route Optimization and Truck Loading Planning System
 
 Sprint 1: Foundation (authentication, database, core records).
 
