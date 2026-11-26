@@ -23,7 +23,7 @@ python-dotenv==1.0.1
 
 # Routing and order files
 requests==2.32.5
-ortools==9.14.6200
+ortools==9.14.6206
 openpyxl==3.1.5
 
 # Testing
