@@ -1,145 +1,106 @@
 # DistriFlow System Architecture
 
-**Status:** Sprint 3 implementation snapshot  
-**Application:** Route optimization and truck-loading planning system  
-**Technology base:** FastAPI, SQLAlchemy, Pydantic, OR-Tools, OSRM, SQLite/PostgreSQL
+**Status:** Current implementation snapshot
 
-## 1. Purpose and Scope
+**Application:** Route optimization, truck loading, and delivery-plan management system
 
-DistriFlow prepares and evaluates delivery plans for a fleet of trucks. The system:
+**Technology base:** Python, FastAPI, SQLAlchemy, Pydantic, Jinja2, Google OR-Tools, OSRM, SQLite/PostgreSQL
 
-- authenticates Administrators and Dispatchers;
-- maintains users, trucks, and customers;
-- accepts order data from CSV or Excel files or through manual entry;
-- validates staging rows and truck capacity;
-- calculates road distance and travel-time matrices;
-- generates an optimized depot-to-customer round trip;
-- produces a reverse-loading sequence; and
-- exposes both interactive Swagger documentation and REST APIs.
+## 1. Purpose
 
-The core application is currently a modular monolith. A draft plan is held in server memory while a plan is being prepared. SQLAlchemy models for saved plans also exist, but the current API does not expose an approval or persistence workflow.
+DistriFlow is a modular monolith for planning and managing delivery operations. It provides:
+
+- Administrator and Dispatcher authentication;
+- user, truck, and customer administration;
+- manual order entry or CSV/Excel order upload;
+- staged order validation and truck capacity checks;
+- road-distance and travel-time lookup;
+- depot-to-customer route optimization with time windows;
+- reverse-loading sequence generation;
+- draft-plan review and manual stop reordering;
+- transactional approval and saved-plan status management;
+- dashboard metrics and a server-rendered browser interface.
+
+The application exposes both HTML pages and JSON API endpoints. A plan moves through in-memory staging and draft states before it is approved and persisted in SQLAlchemy tables.
 
 ## 2. Architectural Style
 
-DistriFlow uses a layered, single-process FastAPI monolith:
+DistriFlow is a single-process, layered FastAPI modular monolith:
 
 ```text
-Client / API consumer
+Browser / API consumer
         |
         v
-FastAPI routers (HTTP and authorization boundary)
-        |
-        v
-Pydantic schemas -> request/response validation
-        |
-        v
-Domain and application services
-  |- staging
-  |- file parsing
-  |- route optimization
-  |- road-distance lookup
-  |- session state
-  |- password and JWT security
-        |
-        +----------------> SQLAlchemy models
+Jinja2 HTML pages         FastAPI JSON routers
         |                         |
-        v                         v
-In-memory working state     SQLite or PostgreSQL
+        +------------+------------+
+                     v
+          Authentication and role dependencies
+                     |
+                     v
+             Pydantic schemas
+                     |
+                     v
+  Staging, optimization, persistence, security services
+                     |
+       +-------------+-------------+
+       v                           v
+Process-local SessionStore   SQLAlchemy models
+                                      |
+                                      v
+                              SQLite / PostgreSQL
+                     |
+                     v
+              OSRM + Haversine fallback
+                     |
+                     v
+                   OR-Tools
 ```
 
-This architecture separates:
+The main boundaries are HTTP/UI transport, Pydantic validation, application/domain services, SQLAlchemy persistence, and external routing.
 
-- HTTP transport and routing;
-- request and response models;
-- database access;
-- planning and validation logic;
-- external road-routing integration; and
-- authentication and authorization.
+There is no message broker, background-worker tier, cache, or shared external session store.
 
-There is no message broker, separate worker tier, cache, or external state store in the current implementation.
+## 3. Runtime Assembly
 
-## 3. Repository Layout
+`app.main:app` creates the FastAPI application, sets metadata/version `1.0.0`, registers page and API routers, enables CORS, mounts `app/static`, and creates missing database tables through SQLAlchemy `create_all()` at startup.
 
-```text
-distriflow/
-|-- app/
-|   |-- main.py              # FastAPI application assembly
-|   |-- config.py            # Environment-backed configuration
-|   |-- database.py          # SQLAlchemy engine and sessions
-|   |-- dependencies.py      # Authentication and authorization dependencies
-|   |-- models/              # SQLAlchemy persistence entities
-|   |-- routers/             # REST endpoints
-|   |-- schemas/             # Pydantic API models
-|   |-- services/            # Domain logic and integrations
-|   |-- static/              # Reserved static assets
-|   `-- templates/           # Reserved templates
-|-- tests/                   # Pytest API, model, and seed tests
-|-- seed.py                  # Idempotent development seed script
-|-- distriflow_dev.db        # Default SQLite database
-|-- requirements.txt         # Python dependencies
-|-- .env.example             # Environment-variable example
-`-- README.md
-```
-
-## 4. Runtime Components
-
-### 4.1 Application entry point
-
-`app.main:app` creates the FastAPI application, registers all routers, and creates missing database tables during application startup.
-
-The public health endpoint is:
-
-```http
-GET /health
-```
-
-It returns `{"status":"ok"}` and does not require authentication.
-
-### 4.2 Database
-
-`app/database.py` creates a SQLAlchemy engine and a `SessionLocal` session factory.
-
-- Development defaults to a local SQLite file.
-- PostgreSQL is selected by supplying `DATABASE_URL`.
-- SQLite is configured with `check_same_thread=False` for threaded request handling.
-- `get_db()` provides a session to each request and closes it afterward.
-- `Base.metadata.create_all()` creates missing tables at startup and during seeding.
-
-The SQLAlchemy base does not currently use migrations. Schema changes require a migration solution or, during development, recreation/reset of the database.
-
-### 4.3 Configuration
-
-Configuration is read from environment variables and `.env` by `app/config.py`.
-
-Important groups are:
-
-| Group | Examples |
+| Component | Location |
 |---|---|
-| Database | `DATABASE_URL` |
-| Security | `SECRET_KEY`, `SESSION_TIMEOUT_MINUTES`, `BCRYPT_ROUNDS` |
-| Depot | `DEPOT_NAME`, `DEPOT_LATITUDE`, `DEPOT_LONGITUDE` |
-| Planning | departure, service, stop, and solver limits |
-| External routing | `OSRM_BASE_URL`, `OSRM_TIMEOUT_SECONDS` |
-| File uploads | `MAX_UPLOAD_MB`, `MAX_UPLOAD_ROWS` |
+| Application assembly | `app/main.py` |
+| Environment configuration | `app/config.py` |
+| Database and sessions | `app/database.py` |
+| Authentication dependencies | `app/dependencies.py` |
+| Persistence entities | `app/models/` |
+| HTTP/API and page routers | `app/routers/` |
+| Request/response models | `app/schemas/` |
+| Domain and integration services | `app/services/` |
+| Browser templates | `app/templates/` |
+| Browser assets | `app/static/` |
+| Automated tests | `tests/` |
 
-The development secret and SQLite fallback are suitable only for local use. Production deployments must provide a strong secret and durable database.
+The public health endpoint is `GET /health`, which returns `{"status":"ok"}`.
 
-### 4.4 HTTP routers
+## 4. Browser Interface
 
-| Router | Responsibility |
+Jinja2 serves the application pages. JavaScript in `app/static/js/` calls the JSON endpoints and updates the rendered interface.
+
+| Page | Route |
 |---|---|
-| `auth` | Login, logout, and current-user lookup |
-| `users` | Administrator-only account management |
-| `trucks` | Truck lookup and Administrator maintenance |
-| `customers` | Customer lookup and Administrator maintenance |
-| `staging` | Truck selection, order upload, manual rows, and cancellation |
-| `plans` | Draft-plan generation and retrieval |
+| Login | `/login` |
+| Dashboard | `/dashboard` |
+| Staging | `/staging` |
+| New plan | `/plan/new` |
+| Draft plan | `/plans/draft/view` |
+| Approved plan | `/plans/approved` |
+| Saved plan history | `/plans/history` |
+| Customer administration | `/admin/customers` |
+| Truck administration | `/admin/trucks` |
+| User administration | `/admin/users` |
 
-FastAPI generates OpenAPI documentation and exposes it under `/docs`.
+FastAPI also exposes interactive OpenAPI documentation at `/docs`.
 
 ## 5. Persistence Model
-
-The SQLAlchemy model relationships are represented below.
 
 ```mermaid
 erDiagram
@@ -170,14 +131,15 @@ erDiagram
         string town
         float latitude
         float longitude
-        time open_time
-        time close_time
+        int open_time
+        int close_time
     }
     DELIVERY_PLANS {
         int plan_id PK
         int truck_id FK
         int created_by FK
         date plan_date
+        date delivery_date
         string status
         float total_weight
         float total_distance
@@ -188,6 +150,7 @@ erDiagram
         int plan_id FK
         int customer_id FK
         int stop_sequence
+        string arrival_time
     }
     PLAN_ITEMS {
         int item_id PK
@@ -200,189 +163,164 @@ erDiagram
     }
 ```
 
-### Deletion behavior
+The database layer is SQLAlchemy 2.0. Development uses SQLite when `DATABASE_URL` is configured for a SQLite file; PostgreSQL is supported through `DATABASE_URL`.
 
-- A truck or user marked inactive remains in the database because old plans may refer to it.
-- Customers cannot be deleted if referenced by a saved plan stop.
-- Delivery-plan stops use an orphan-delete cascade, and stops cascade to plan items.
-- Users and active trucks use soft deactivation rather than hard deletion.
-
-Only deactivation is implemented for users and trucks.
+SQLAlchemy `create_all()` creates missing tables, but no Alembic migration workflow is present. User and truck records use soft deactivation. Customers are retained or prevented from being deleted where plan references require it. Delivery plans cascade to stops and plan items through SQLAlchemy relationships.
 
 ## 6. Authentication and Authorization
 
 ### Authentication
 
-The login flow:
+1. `POST /auth/login` loads a user by username.
+2. The submitted password is checked with bcrypt against `password_hash`.
+3. A signed HS256 JWT is issued with the user ID and expiry.
+4. The response includes the token and sets an HTTP-only cookie.
+5. Protected endpoints read the bearer token first, then the cookie.
 
-1. The client submits a username and password.
-2. The server loads the user and verifies the bcrypt password hash.
-3. A signed JWT containing `sub` (the user ID) and `exp` is issued.
-4. The token is returned in the JSON response and also set in an HTTP-only cookie.
-5. Protected endpoints accept either the bearer token or the cookie.
+`POST /auth/logout` clears the server-side working session for the user and deletes the browser cookie.
 
-The JWT uses HS256. Passwords are never stored in plain text.
+### Roles
 
-### Authorization
-
-The dependencies in `app/dependencies.py` provide two authorization levels:
-
-| Dependency | Allowed role |
+| Dependency | Allowed users |
 |---|---|
-| `require_dispatcher` | Any authenticated active Administrator or Dispatcher |
-| `require_admin` | Administrator only |
+| `require_dispatcher` | Any active authenticated Administrator or Dispatcher |
+| `require_admin` | Administrators only |
 
-User, customer, and truck read operations follow the role rules described in their routers. Customer and truck writes are Administrator-only. Planning and staging operations are available to both roles.
+Every protected request reloads the user and rejects inactive or missing accounts. User, customer, and truck write operations follow Administrator-only rules where implemented.
 
-Every protected request checks that the user still exists and remains active.
-
-## 7. Working-Session State
+## 7. Working Session State
 
 `SessionStore` is a process-local, thread-safe dictionary keyed by user ID.
 
 Each `UserSession` contains:
 
 - a `StagingTable`;
-- an optional generated `DraftPlan`; and
+- an optional `DraftPlan`;
 - a last-activity timestamp.
 
-The staging table and draft are deliberately not written to SQL tables during generation. This keeps an unfinished plan separate from approved business records.
+This state is deliberately separate from approved records. Staging and draft plans are lost on process restart and are not shared across Uvicorn worker processes.
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant API as FastAPI
-    participant Store as SessionStore
-    participant DB as SQLAlchemy
+Session entries expire after `SESSION_TIMEOUT_MINUTES` of inactivity. Logout removes the user's session. A lock protects mutations and concurrent access.
 
-    User->>API: Select truck
-    API->>DB: Load active truck
-    DB-->>API: Truck
-    API->>Store: Update user's staging truck
-    API-->>User: Staging summary
+For horizontal deployment or restart-safe sessions, the implementation needs Redis, a database-backed session service, or another shared state store.
 
-    User->>API: Upload orders
-    API->>DB: Load customer lookup
-    API->>Store: Replace and validate staging rows
-    API-->>User: Validated staging table
-```
+## 8. Staging and Order Validation
 
-### Session characteristics
+The staging table stores the selected truck, manual/uploaded order rows, and derived valid-row totals.
 
-- Entries expire after inactivity.
-- State is lost when the process restarts.
-- State is not shared across multiple Uvicorn worker processes.
-- A mutex protects state mutations.
-- Tests replace or isolate the store when needed.
+### Truck selection
 
-For production scale-out, the store should be replaced by Redis or another shared, persistent session store.
+`PUT /staging/truck` sets the truck ID, license plate, and capacity for the user's working session.
 
-## 8. Staging and Validation
+### Manual rows
 
-### 8.1 Manual entry
+Manual orders are created and edited through `/staging/rows`. Customer names are resolved through the database-backed customer lookup.
 
-`POST /staging/rows` creates an order line using a customer ID. The line is validated immediately.
+### File uploads
 
-### 8.2 File upload
+`POST /staging/upload` replaces the current staging rows. It supports CSV and `.xlsx` files.
 
-Uploads support CSV and `.xlsx` files. The parser:
+The file reader:
 
-- normalizes common column names;
+- normalizes common header names;
 - requires Customer, Product, Quantity, and Unit weight;
-- supports an optional Total weight column;
+- supports an optional total-weight column;
 - detects CSV separators;
-- decodes CSV as UTF-8 or Windows-1252;
-- reads the active sheet for Excel; and
-- limits file size and row count.
+- handles UTF-8 and Windows-1252 CSV text;
+- reads the active Excel worksheet;
+- applies upload size and row limits;
+- ignores blank spreadsheet rows;
+- uses the original spreadsheet row number in validation feedback.
 
-Blank spreadsheet rows are ignored. The first spreadsheet row is treated as the header. `row_id` values correspond to spreadsheet row numbers, allowing validation errors to name the original row.
+### Validation
 
-### 8.3 Validation rules
+A row can report independent issues for missing/unknown/ambiguous customers, missing product, invalid quantity, invalid unit weight, and a stated total that does not equal quantity multiplied by unit weight.
 
-An `OrderLine` may produce multiple independent errors:
+Invalid rows remain visible and are excluded from valid totals. Generation requires:
 
-- customer missing or unknown;
-- duplicate customer-name matches;
-- product missing;
-- quantity missing, negative, zero, or fractional;
-- unit weight missing, non-numeric, or non-positive;
-- stated total weight not matching quantity multiplied by unit weight.
-
-Invalid rows remain visible and are excluded from weight totals. Generation is blocked until every row is valid and the selected truck has enough capacity.
+- a selected truck;
+- at least one row;
+- no invalid rows;
+- weight within truck capacity.
 
 ## 9. Route-Generation Flow
 
 ```mermaid
 sequenceDiagram
     actor Dispatcher
+    participant UI as Browser
     participant API as Plans API
+    participant Store as SessionStore
     participant DB as SQLAlchemy
     participant OSRM
-    participant ORTools as OR-Tools
-    participant Store as SessionStore
+    participant Solver as OR-Tools
 
-    Dispatcher->>API: POST /plans/generate
-    API->>Store: Read staging table
-    API->>API: Verify ready state
-    API->>DB: Load customers
-    API->>OSRM: Request distance/duration matrix
-    OSRM-->>API: Road matrices
-    API->>ORTools: Solve capacity/time-window route
-    ORTools-->>API: Customer route
-    API->>API: Build schedule and loading plan
-    API->>Store: Store draft
-    API-->>Dispatcher: Draft plan
+    Dispatcher->>UI: Add/upload orders
+    UI->>API: Staging requests
+    API->>Store: Read/write staging session
+    Dispatcher->>UI: Generate plan
+    UI->>API: POST /plans/generate
+    API->>Store: Read staged truck and rows
+    API->>DB: Load customer locations/windows
+    API->>OSRM: Road distance/duration matrix
+    OSRM-->>API: Matrices or unavailable
+    API->>Solver: Solve route
+    Solver-->>API: Customer sequence
+    API->>Store: Store draft plan
+    API-->>UI: Draft plan
 ```
 
-### Route steps
+The optimizer:
 
-1. Group staged order lines by customer.
-2. Reject plans with more than the configured stop limit.
-3. Ask OSRM for a road distance and duration matrix.
-4. Convert weight to grams and road values to integer solver units.
-5. Attempt a route that honors customer opening/closing times.
-6. If no time-window route exists, solve a shortest-route-only fallback.
-7. Verify that every customer node was visited exactly once.
-8. Walk the route to calculate arrivals, waits, and return time.
-9. Reverse the delivery sequence to create the loading plan.
-10. Calculate round-trip distance and metrics.
+1. groups order lines by customer;
+2. enforces the configured maximum stop count;
+3. constructs a matrix with depot node zero;
+4. requests road distances and durations;
+5. converts weight to grams and solver limits to integer units;
+6. solves a one-vehicle capacity-constrained route;
+7. first applies customer opening/closing time windows;
+8. retries without time windows if no feasible window-respecting route exists;
+9. verifies that every customer is visited exactly once;
+10. calculates leg distances, arrivals, waits, and depot return time;
+11. reverses the delivery route to create the loading plan;
+12. returns a warning for route or window fallback cases.
 
-OR-Tools' routing model represents the depot as node zero and customers as numbered nodes. One vehicle, truck capacity, distance cost, and optional opening-hour dimensions are modeled. The solver applies a per-attempt time limit controlled by configuration.
+OR-Tools uses distance as the arc cost and models truck capacity and optional customer time windows. Solver attempts are limited by configuration. The fallback route is still capacity-constrained and identifies all stops.
 
-### Loading sequence
+For loading, stop 1 is loaded last and the final stop is loaded first. Loading sequence is therefore the exact reverse of delivery sequence.
 
-The last delivery stop is loaded first, and the first delivery stop is loaded last. This is the exact reverse of the delivery route. If the truck is loaded using that sequence, the final loaded item is available at the first stop.
+## 10. Draft and Saved-Plan Models
 
-## 10. Draft-Plan Data Model
-
-The optimizer creates plain dataclasses, rather than SQLAlchemy entities:
+Draft plans are plain Python dataclasses:
 
 - `DraftPlan`;
 - `DraftStop`;
 - `DraftItem`;
-- `LoadingEntry`; and
+- `LoadingEntry`;
 - `PlanMetrics`.
 
-The API converts the draft to a dictionary and validates it against `DraftPlanOut` Pydantic models.
+Internal matrices and original metrics are retained in the draft session for reordering, but are not exposed through `DraftPlanOut`.
 
-The draft stores internal routing matrices and original metrics for future reorder/reoptimization work. These fields are not emitted in the plan response.
+The following route state exists in addition to optimization:
 
-## 11. External Integrations
+- `/plans/draft/stops/{stop_id}` supports manual sequence adjustment;
+- `/plans/draft/reorder` accepts a complete customer-ID sequence;
+- `/plans/approve` copies the draft into SQL tables;
+- `/plans/list` and `/plans/{plan_id}` read saved plans;
+- `/plans/{plan_id}/status` changes plan status;
+- `/plans/draft` retrieves the current in-memory draft.
 
-### OSRM
+Approval is dispatched as one database transaction that creates the `DeliveryPlan`, associated `PlanStop` rows, and `PlanItem` rows. The draft is removed from the session after a successful commit.
 
-`OsrmDistanceService` sends a `/table/v1/driving/` request to the configured OSRM server. It requests both:
+Draft stop reordering recalculates the reverse loading sequence and metrics. It uses the matrices retained in the draft instead of requesting OSRM again.
 
-- distance in metres; and
-- duration in seconds.
+## 11. Distance Integration
 
-The integration validates HTTP status, JSON structure, square matrices, and null values. OSRM failures are mapped to `DistanceServiceError`, then to HTTP 502 for plan generation.
+`OsrmDistanceService` requests OSRM `/table/v1/driving/` data for both distance and duration.
 
-The public OSRM service is useful for development but can be unavailable or unsuitable for production. A production deployment should use a controlled OSRM instance or approved routing provider.
+The integration is resilient rather than raising `DistanceServiceError`: HTTP failures, OSRM JSON errors, connection errors, missing coordinates, and zero coordinates trigger a straight-line Haversine fallback. The fallback estimates travel time at 40 km/h.
 
-### Google OR-Tools
-
-OR-Tools performs the constrained route search. The implementation prioritizes shortest distance and applies capacity and time dimensions.
+This behavior keeps planning available without OSRM, at the cost of replacing road distance with approximate geometry. Warnings are currently printed to server logs rather than returned as a route-generation field.
 
 ## 12. API Surface
 
@@ -390,9 +328,9 @@ OR-Tools performs the constrained route search. The implementation prioritizes s
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/auth/login` | Authenticate |
-| `POST` | `/auth/logout` | Remove browser cookie |
-| `GET` | `/auth/me` | Get current user |
+| `POST` | `/auth/login` | Authenticate and create cookie/token |
+| `POST` | `/auth/logout` | Clear session and cookie |
+| `GET` | `/auth/me` | Return current user |
 
 ### Users
 
@@ -400,89 +338,125 @@ OR-Tools performs the constrained route search. The implementation prioritizes s
 |---|---|---|
 | `GET` | `/users` | List users |
 | `POST` | `/users` | Create user |
-| `GET` | `/users/{id}` | Get user |
-| `PUT` | `/users/{id}` | Update user |
-| `DELETE` | `/users/{id}` | Deactivate user |
+| `GET` | `/users/{user_id}` | Get user |
+| `PUT` | `/users/{user_id}` | Update user |
+| `DELETE` | `/users/{user_id}` | Deactivate user |
 
 ### Trucks
 
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `GET` | `/trucks` | List trucks |
-| `GET` | `/trucks/{id}` | Get truck |
+| `GET` | `/trucks/{truck_id}` | Get truck |
 | `POST` | `/trucks` | Create truck |
-| `PUT` | `/trucks/{id}` | Update truck |
-| `DELETE` | `/trucks/{id}` | Deactivate truck |
+| `PUT` | `/trucks/{truck_id}` | Update truck |
+| `DELETE` | `/trucks/{truck_id}` | Deactivate truck |
 
 ### Customers
 
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `GET` | `/customers` | List customers |
-| `GET` | `/customers/{id}` | Get customer |
+| `GET` | `/customers/{customer_id}` | Get customer |
 | `POST` | `/customers` | Create customer |
-| `PUT` | `/customers/{id}` | Update customer |
-| `DELETE` | `/customers/{id}` | Delete unused customer |
+| `PUT` | `/customers/{customer_id}` | Update customer |
+| `DELETE` | `/customers/{customer_id}` | Delete unused customer |
 
 ### Staging
 
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `PUT` | `/staging/truck` | Select truck |
-| `POST` | `/staging/upload` | Replace rows with uploaded file |
-| `GET` | `/staging` | Read staging state |
-| `POST` | `/staging/rows` | Add manual row |
-| `PUT` | `/staging/rows/{id}` | Edit row |
-| `DELETE` | `/staging/rows/{id}` | Delete row |
-| `DELETE` | `/staging` | Cancel staging |
+| `POST` | `/staging/upload` | Replace rows from CSV/XLSX |
+| `GET` | `/staging/read` | Read staging state |
+| `POST` | `/staging/rows` | Add row |
+| `PUT` | `/staging/rows/{row_id}` | Edit row |
+| `DELETE` | `/staging/rows/{row_id}` | Delete row |
+| `DELETE` | `/staging` | Clear staging |
 
-### Optimization
+### Plans and dashboard
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/plans/generate` | Generate draft plan |
-| `GET` | `/plans/draft` | Retrieve draft plan |
+| `POST` | `/plans/generate` | Generate draft |
+| `GET` | `/plans/draft` | Read draft |
+| `PATCH` | `/plans/draft/stops/{stop_id}` | Move a draft stop |
+| `POST` | `/plans/draft/reorder` | Reorder all draft stops |
+| `POST` | `/plans/approve` | Persist approved plan |
+| `GET` | `/plans/list` | List saved plans |
+| `GET` | `/plans/{plan_id}` | Read saved plan |
+| `PATCH` | `/plans/{plan_id}/status` | Change plan status |
+| `GET` | `/dashboard/stats` | Read KPIs, fleet status, and activity |
 
-## 13. Error Handling
+## 13. Dashboard
 
-The application uses HTTP status codes to distinguish request, authorization, external-service, and planning failures:
+`GET /dashboard/stats` calculates:
 
-- `400` for invalid staging or planning input;
+- active plans for today;
+- total plans and plans created today;
+- active truck count;
+- customer count;
+- the five most recent plans;
+- approved/in-progress/delivered status counts;
+- a configurable daily activity chart.
+
+All dashboard counts are read live from SQLAlchemy.
+
+## 14. Configuration
+
+Configuration is read through `app/config.py` from environment variables and `.env`.
+
+| Area | Settings |
+|---|---|
+| Database | `DATABASE_URL` |
+| Security | `SECRET_KEY`, `ALGORITHM`, `SESSION_TIMEOUT_MINUTES`, `BCRYPT_ROUNDS` |
+| Depot | `DEPOT_NAME`, `DEPOT_LATITUDE`, `DEPOT_LONGITUDE` |
+| Planning | `DEPARTURE_TIME_MINUTES`, `SERVICE_MINUTES_PER_STOP`, `MAX_STOPS`, `OPTIMIZER_MAX_SECONDS` |
+| Routing | `OSRM_BASE_URL`, `OSRM_TIMEOUT_SECONDS` |
+| Uploads | `MAX_UPLOAD_MB`, `MAX_UPLOAD_ROWS` |
+
+The login cookie uses HTTP-only, SameSite=Lax, and the configuration-controlled secure flag.
+
+The checked-in implementation assumes required environment values are supplied. Deployment must provide a strong `SECRET_KEY`, database URL, depot coordinates, and routing/planning settings.
+
+## 15. Error Handling
+
+HTTP responses separate validation, authorization, persistence, and external-routing outcomes:
+
+- `400` for invalid staging, planning, reordering, or status input;
 - `401` for missing or invalid authentication;
 - `403` for insufficient role permissions;
-- `404` for missing records or state;
-- `409` for duplicate or referential-integrity conflicts;
+- `404` for missing users, records, drafts, or plans;
+- `409` for duplicate/conflicting maintenance operations where applied;
 - `413` for oversized uploads;
-- `502` for OSRM failures.
+- `201` for plan approval and created resources.
 
-Planning-specific exceptions are raised in domain services and converted to HTTP responses at router boundaries.
+The routing service's Haversine fallback means unavailable OSRM does not currently map to HTTP 502; it is instead handled as a warning and approximate fallback. Planning and persistence exceptions are converted to HTTP responses at router boundaries.
 
-## 14. Testing Strategy
+## 16. Testing
 
-The test suite uses pytest and FastAPI's TestClient.
+The pytest suite uses FastAPI `TestClient` and in-memory or isolated SQLAlchemy database fixtures.
 
-Tests cover:
+Current coverage focuses on:
 
-- authentication and role restrictions;
-- customer CRUD behavior;
-- truck CRUD behavior;
-- user CRUD behavior;
-- SQLAlchemy models and seed data; and
-- database override fixtures.
+- login and role restrictions;
+- customer CRUD;
+- truck CRUD;
+- user CRUD;
+- SQLAlchemy models and seed data.
 
-The test database is in-memory SQLite and is isolated for each test session. External distance services should be injected or replaced with a fake implementation so optimization tests do not depend on internet connectivity.
-
-Recommended test commands:
+Recommended command:
 
 ```powershell
-cd distriflow
 .venv\Scripts\activate
 python -m pytest -v
 ```
 
-## 15. Deployment
+Tests that depend on optimization should replace OSRM with a deterministic distance-service implementation. Plan persistence and dashboard behavior should also be tested against an isolated database.
 
-### Development
+## 17. Deployment
+
+Run the application with Uvicorn:
 
 ```powershell
 python -m venv .venv
@@ -493,68 +467,54 @@ python seed.py
 uvicorn app.main:app --reload
 ```
 
-### Production considerations
+For deployment:
 
-Run one or more Uvicorn/Gunicorn workers behind HTTPS termination. Production deployments should:
-
-- set a strong random `SECRET_KEY`;
-- use PostgreSQL;
-- add database migrations;
-- replace the public OSRM endpoint or self-host OSRM;
-- use a shared session store;
+- use HTTPS and a strong random secret;
+- set `COOKIE_SECURE=True` when served over HTTPS;
+- use PostgreSQL and add migrations;
+- run a controlled/self-hosted OSRM service;
+- use a shared session store before enabling multiple workers;
 - restrict CORS origins;
-- enable cookie secure mode under HTTPS;
-- set upload and solver limits deliberately;
 - add structured logging and metrics;
-- run health/readiness checks;
-- pin and separately audit runtime dependencies.
+- set deliberate upload and solver limits;
+- configure health and readiness checks;
+- add operational backups.
 
-Do not run multiple workers with the current `SessionStore`, because staging and draft state will not be shared between workers.
+Do not run the current `SessionStore` across multiple Uvicorn workers: staging and drafts would be split across processes.
 
-## 16. Operational Data Lifecycle
+## 18. Dependencies and Known Gaps
 
-```text
-Login
-  -> process-local user session
-  -> select truck
-  -> add or upload orders
-  -> validate staging
-  -> generate draft
-  -> hold in memory
-  -> [future approval workflow]
-  -> delivery_plans, plan_stops, plan_items
-```
+The implementation currently imports additional runtime packages that are not all declared in `requirements.txt`:
 
-Draft plans are ephemeral. Only SQLAlchemy entities exist for approved plans; there is currently no API endpoint or service that copies a draft into those tables.
+- `requests`;
+- `ortools`;
+- `openpyxl`;
+- Jinja2 support is normally provided transitively but can be declared explicitly.
 
-## 17. Current Implementation Gaps
+The dependency manifest should be reconciled with the actual imports before a clean deployment.
 
-The following items should be considered when presenting or operating the application:
+Other current limitations:
 
-- Saved-plan approval, CRUD, and retrieval endpoints are not implemented.
-- `SessionStore` is process-local and is not suitable for multi-worker deployment.
-- Logout removes the authentication cookie but does not clear the server-side `SessionStore`.
-- The plan, staging, and session implementation uses in-memory state rather than database transactions.
-- Database setup uses `create_all` and has no Alembic migration system.
-- Several imports are not declared in `requirements.txt`, including `requests`, `ortools`, and `openpyxl`; the environment must provide them or the manifest must be completed.
-- The distance integration depends on network availability.
-- A public OSRM endpoint may impose latency or usage restrictions.
-- The authorization dependencies refer to cookie configuration names that should be kept consistent with `app/config.py`.
-- JWT inactivity is represented through the token expiry and refreshed cookie behavior, but the implementation should be reviewed as one coherent session policy.
+- no database migration system;
+- process-local staging and drafts;
+- no real-time routing status or background optimization;
+- no implemented export endpoint despite the CSV export helper;
+- OSRM failure is silently logged as it falls back to Haversine;
+- the dashboard and plan APIs lack dedicated integration tests;
+- manual reordering recalculates metrics using retained matrices but does not call the external routing service;
+- plan status is restricted to `approved`, `in_progress`, and `delivered`;
+- authorization and session constants should be kept consistent by adding/fixing a dedicated inactivity setting;
+- the application has one in-process security configuration and no refresh-token model.
 
-These gaps do not prevent the documented current workflows from operating, but they define the boundary between a diploma/development implementation and a production-ready system.
+## 19. Recommended Evolution
 
-## 18. Recommended Evolution
-
-A likely production evolution is:
-
-1. Add Alembic migrations.
-2. Add approval endpoints and transactional saved-plan persistence.
-3. Move staging/drafts to Redis or database-backed state.
-4. Introduce an application/service layer for plan approval and reoptimization.
-5. Add audit fields such as created/updated timestamps and actor IDs.
-6. Add idempotency for plan generation and approval.
-7. Add background execution for long-running optimization.
-8. Add CORS and HTTPS/security middleware.
-9. Add Prometheus/OpenTelemetry metrics.
-10. Add automated integration tests against PostgreSQL and a local OSRM service.
+1. Add Alembic migrations and schema versioning.
+2. Move staging and drafts into Redis or durable database state.
+3. Add a transactional plan approval and status audit service.
+4. Expose plan CSV/PDF export endpoints.
+5. Add structured routing-fallback reporting and provider-health checks.
+6. Run optimization in bounded background tasks for larger plans.
+7. Add PostgreSQL, OSRM, and browser-level integration tests.
+8. Add audit timestamps and actor fields.
+9. Complete and pin all runtime dependencies.
+10. Add metrics, tracing, backup, and deployment health checks.
